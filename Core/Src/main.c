@@ -111,6 +111,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+	  HAL_Delay(100);
+	  HAL_GPIO_TogglePin(LED_Y_GPIO_Port, LED_Y_Pin);
+	  HAL_Delay(100);
+	  HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+	  HAL_Delay(100);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -129,20 +136,15 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
+  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
-  RCC_OscInitStruct.PLL.PLLN = 28;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -152,12 +154,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -184,7 +186,7 @@ static void MX_ADC2_Init(void)
   /** Common config
   */
   hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.GainCompensation = 0;
@@ -290,7 +292,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x20501E65;
+  hi2c1.Init.Timing = 0x0010061A;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -404,9 +406,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_G_Pin|BUTTON_G_Pin|LED_Y_Pin|BUTTON_Y_Pin
-                          |DISP_1B_Pin|DISP_2C_Pin|DISP_2G_Pin|DISP_2D_Pin
-                          |DISP_2E_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_G_Pin|LED_Y_Pin|DISP_1B_Pin|DISP_2C_Pin
+                          |DISP_2G_Pin|DISP_2D_Pin|DISP_2E_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LED_R_Pin|EEPROM_NWC_Pin|DISP_1E_Pin|DISP_1D_Pin
@@ -416,15 +417,19 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, DISP_1A_Pin|DISP_1G_Pin|DISP_1F_Pin|DISP_2F_Pin
                           |DISP_2A_Pin|DISP_2B_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_G_Pin BUTTON_G_Pin LED_Y_Pin BUTTON_Y_Pin
-                           DISP_1B_Pin DISP_2C_Pin DISP_2G_Pin DISP_2D_Pin
-                           DISP_2E_Pin */
-  GPIO_InitStruct.Pin = LED_G_Pin|BUTTON_G_Pin|LED_Y_Pin|BUTTON_Y_Pin
-                          |DISP_1B_Pin|DISP_2C_Pin|DISP_2G_Pin|DISP_2D_Pin
-                          |DISP_2E_Pin;
+  /*Configure GPIO pins : LED_G_Pin LED_Y_Pin DISP_1B_Pin DISP_2C_Pin
+                           DISP_2G_Pin DISP_2D_Pin DISP_2E_Pin */
+  GPIO_InitStruct.Pin = LED_G_Pin|LED_Y_Pin|DISP_1B_Pin|DISP_2C_Pin
+                          |DISP_2G_Pin|DISP_2D_Pin|DISP_2E_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : BUTTON_G_Pin BUTTON_Y_Pin E_STOP_Pin */
+  GPIO_InitStruct.Pin = BUTTON_G_Pin|BUTTON_Y_Pin|E_STOP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_R_Pin EEPROM_NWC_Pin DISP_1E_Pin DISP_1D_Pin
@@ -450,12 +455,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : E_STOP_Pin */
-  GPIO_InitStruct.Pin = E_STOP_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(E_STOP_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
