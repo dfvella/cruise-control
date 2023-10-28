@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "display.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -104,19 +104,38 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  Display_init();
+  Display_spin();
+  uint32_t timer = HAL_GetTick();
+  while (1)
+  {
+	  Display_draw();
+	  if (HAL_GetTick() - timer > 2000)
+	  {
+		  break;
+	  }
+  }
 
+  uint8_t counter = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
-	  HAL_Delay(100);
-	  HAL_GPIO_TogglePin(LED_Y_GPIO_Port, LED_Y_Pin);
-	  HAL_Delay(100);
-	  HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
-	  HAL_Delay(100);
+	  Display_set(counter);
+	  Display_draw();
+
+	  if (counter == 99)
+	  {
+		  counter = 0;
+	  }
+	  else
+	  {
+		  counter++;
+	  }
+
+	  HAL_Delay(200);
 
     /* USER CODE END WHILE */
 
