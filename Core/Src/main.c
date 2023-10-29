@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "display.h"
+#include "led.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -104,38 +105,30 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  Display_init();
-  Display_spin();
-  uint32_t timer = HAL_GetTick();
-  while (1)
-  {
-	  Display_draw();
-	  if (HAL_GetTick() - timer > 2000)
-	  {
-		  break;
-	  }
-  }
-
-  uint8_t counter = 0;
+  led_r_on();
+  HAL_Delay(100);
+  led_y_on();
+  HAL_Delay(100);
+  led_g_on();
+  HAL_Delay(100);
+  led_r_off();
+  HAL_Delay(100);
+  led_y_off();
+  HAL_Delay(100);
+  led_g_off();
+  HAL_Delay(1000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Display_set(counter);
-	  Display_draw();
 
-	  if (counter == 99)
-	  {
-		  counter = 0;
-	  }
-	  else
-	  {
-		  counter++;
-	  }
+	  led_r_blink();
+	  led_y_blink();
+	  led_g_blink();
 
-	  HAL_Delay(200);
+	  HAL_Delay(10);
 
     /* USER CODE END WHILE */
 
