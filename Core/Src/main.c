@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "display.h"
 #include "led.h"
 /* USER CODE END Includes */
@@ -105,30 +106,15 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  led_r_on();
-  HAL_Delay(100);
-  led_y_on();
-  HAL_Delay(100);
-  led_g_on();
-  HAL_Delay(100);
-  led_r_off();
-  HAL_Delay(100);
-  led_y_off();
-  HAL_Delay(100);
-  led_g_off();
-  HAL_Delay(1000);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  led_r_blink();
-	  led_y_blink();
-	  led_g_blink();
-
-	  HAL_Delay(10);
+	  printf("Hello World!\n");
+	  HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
@@ -473,7 +459,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+PUTCHAR_PROTOTYPE
+{
+  HAL_UART_Transmit(&hlpuart1, (uint8_t *)&ch, 1, 0xFFFF);
+  return ch;
+}
 /* USER CODE END 4 */
 
 /**
@@ -484,6 +479,9 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
+  HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LED_Y_GPIO_Port, LED_Y_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_RESET);
   __disable_irq();
   while (1)
   {
