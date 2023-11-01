@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include "display.h"
 #include "led.h"
+#include "eeprom.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -69,7 +70,23 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void i2c_scan(void)
+{
+	printf("Starting i2c scan ...\n");
 
+	HAL_StatusTypeDef status;
+
+	for (uint8_t i = 1; i < 128; i++)
+	{
+	  status = HAL_I2C_IsDeviceReady(&hi2c1, i << 1, 3, 5);
+	  if (status == HAL_OK)
+	  {
+		  printf("Device found at address 0x%X\n", i);
+	  }
+	}
+
+	printf("Finished\n");
+}
 /* USER CODE END 0 */
 
 /**
@@ -106,15 +123,28 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  uint8_t byte;
+  HAL_StatusTypeDef status;
 
+  eeprom_init();
+
+  HAL_Delay(100);
+
+  status = eeprom_read(0x30, &byte, 1);
+  printf("read byte:%d  status:%d\n", byte, status);
+
+  byte++;
+
+  status = eeprom_write(0x30, &byte, 1);
+  printf("read byte:%d  status:%d\n", byte, status);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  printf("Hello World!\n");
-	  HAL_Delay(1000);
+//	  printf("Hello World!\n");
+//	  HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
