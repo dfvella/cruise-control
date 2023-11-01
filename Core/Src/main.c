@@ -26,6 +26,7 @@
 #include "led.h"
 #include "eeprom.h"
 #include "lsm6dsl.h"
+#include "MCP4561.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -124,30 +125,19 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
-  uint16_t initStruct;
-  initStruct = 0;
-  initStruct |= LSM6DSL_ODR_6660Hz | LSM6DSL_ACC_FULLSCALE_8G;
-  initStruct |= (LSM6DSL_ACC_GYRO_IF_INC_ENABLED | LSM6DSL_BDU_CONTINUOS) << 8;
-  LSM6DSL_AccInit(initStruct);
-  initStruct = 0;
-  initStruct |= LSM6DSL_ODR_6660Hz | LSM6DSL_GYRO_FS_500;
-  initStruct |= (LSM6DSL_ACC_GYRO_IF_INC_ENABLED | LSM6DSL_BDU_CONTINUOS) << 8;
-  LSM6DSL_GyroInit(initStruct);
-
-  int16_t abuffer[3];
-  int16_t wbuffer[3];
+  uint8_t n = 128;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  LSM6DSL_AccReadXYZ(abuffer);
-	  LSM6DSL_GyroReadXYZAngRate(wbuffer);
-	  printf("ax:%d  ay:%d  az:%d  wx:%d  wy:%d  wz:%d\n",abuffer[0],abuffer[1],abuffer[2],wbuffer[0],wbuffer[1],wbuffer[2]);
-	  HAL_Delay(100);
-
+	  HAL_StatusTypeDef status = MCP4561_Set_A(n);
+	  printf("A n:%d  status:%d\n",n,status);
+	  status = MCP4561_Set_B(n);
+	  printf("B n:%d  status:%d\n",n,status);
+	  n+=16;
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
