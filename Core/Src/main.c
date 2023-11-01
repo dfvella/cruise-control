@@ -25,6 +25,7 @@
 #include "display.h"
 #include "led.h"
 #include "eeprom.h"
+#include "lsm6dsl.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -123,28 +124,29 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t byte;
-  HAL_StatusTypeDef status;
 
-  eeprom_init();
+  uint16_t initStruct;
+  initStruct = 0;
+  initStruct |= LSM6DSL_ODR_6660Hz | LSM6DSL_ACC_FULLSCALE_8G;
+  initStruct |= (LSM6DSL_ACC_GYRO_IF_INC_ENABLED | LSM6DSL_BDU_CONTINUOS) << 8;
+  LSM6DSL_AccInit(initStruct);
+  initStruct = 0;
+  initStruct |= LSM6DSL_ODR_6660Hz | LSM6DSL_GYRO_FS_500;
+  initStruct |= (LSM6DSL_ACC_GYRO_IF_INC_ENABLED | LSM6DSL_BDU_CONTINUOS) << 8;
+  LSM6DSL_GyroInit(initStruct);
 
-  HAL_Delay(100);
-
-  status = eeprom_read(0x30, &byte, 1);
-  printf("read byte:%d  status:%d\n", byte, status);
-
-  byte++;
-
-  status = eeprom_write(0x30, &byte, 1);
-  printf("read byte:%d  status:%d\n", byte, status);
+  int16_t abuffer[3];
+  int16_t wbuffer[3];
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  printf("Hello World!\n");
-//	  HAL_Delay(1000);
+	  LSM6DSL_AccReadXYZ(abuffer);
+	  LSM6DSL_GyroReadXYZAngRate(wbuffer);
+	  printf("ax:%d  ay:%d  az:%d  wx:%d  wy:%d  wz:%d\n",abuffer[0],abuffer[1],abuffer[2],wbuffer[0],wbuffer[1],wbuffer[2]);
+	  HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
