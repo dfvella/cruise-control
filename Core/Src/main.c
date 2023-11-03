@@ -27,6 +27,7 @@
 #include "eeprom.h"
 #include "lsm6dsl.h"
 #include "MCP4561.h"
+#include "obd2.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -125,19 +126,22 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t n = 128;
+  obd2_init(&hfdcan1);
+  Display_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_StatusTypeDef status = MCP4561_Set_A(n);
-	  printf("A n:%d  status:%d\n",n,status);
-	  status = MCP4561_Set_B(n);
-	  printf("B n:%d  status:%d\n",n,status);
-	  n+=16;
-	  HAL_Delay(1000);
+	  obd2_request_speed(&hfdcan1);
+
+	  Display_set((uint8_t)obd2_get_speed());
+	  Display_draw();
+
+	  printf("status: %d\n", obd2_get_status() == HAL_OK);
+
+	  HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -275,7 +279,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.AutoRetransmission = ENABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
-  hfdcan1.Init.NominalPrescaler = 21;
+  hfdcan1.Init.NominalPrescaler = 2;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
   hfdcan1.Init.NominalTimeSeg1 = 13;
   hfdcan1.Init.NominalTimeSeg2 = 2;
@@ -283,7 +287,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 1;
   hfdcan1.Init.DataTimeSeg2 = 1;
-  hfdcan1.Init.StdFiltersNbr = 0;
+  hfdcan1.Init.StdFiltersNbr = 1;
   hfdcan1.Init.ExtFiltersNbr = 0;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
@@ -481,6 +485,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *CanHandler, uint32_t RxFifo0ITs)
+{
+	obd2_handle_rx(&hfdcan1);
+}
+
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
