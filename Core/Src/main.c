@@ -133,6 +133,9 @@ int main(void)
   button_r_set_mode(BUTTON_SINGLE_PRESS);
   button_y_set_mode(BUTTON_SINGLE_PRESS);
   button_g_set_mode(BUTTON_SINGLE_PRESS);
+  led_r_set(LED_ON);
+  led_y_set(LED_ON);
+  led_g_set(LED_ON);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -147,10 +150,12 @@ int main(void)
 		  if (mode == BUTTON_SINGLE_PRESS)
 		  {
 			  mode = BUTTON_MULTI_PRESS;
+			  led_r_set(LED_BLINK);
 		  }
 		  else
 		  {
 			  mode = BUTTON_SINGLE_PRESS;
+			  led_r_set(LED_ON);
 		  }
 		  button_y_set_mode(mode);
 		  button_g_set_mode(mode);
@@ -158,6 +163,7 @@ int main(void)
 
 	  Display_set(counter);
 	  Display_draw();
+	  led_update();
 	  HAL_Delay(50);
     /* USER CODE END WHILE */
 

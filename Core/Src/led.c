@@ -7,52 +7,67 @@
 
 #include "led.h"
 
-static inline GPIO_PinState blink(void)
+static Led_Mode led_r_mode;
+static Led_Mode led_y_mode;
+static Led_Mode led_g_mode;
+
+static GPIO_PinState blink(void)
 {
-	return (HAL_GetTick() % 1000) > 500;
+	return (HAL_GetTick() % LED_BLINK_PERIOD_MS) > (LED_BLINK_PERIOD_MS / 2);
 }
 
-void led_r_on(void)
+static GPIO_PinState strobe(void)
 {
-	HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_SET);
+	return (HAL_GetTick() % LED_STROBE_PERIOD_MS) > (LED_STROBE_PERIOD_MS / 2);
 }
 
-void led_r_blink(void)
+static void led_write(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, Led_Mode mode)
 {
-	HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, blink());
+	GPIO_PinState state = 0;
+
+	switch (mode)
+	{
+	case LED_OFF:
+		state = GPIO_PIN_RESET;
+		break;
+
+	case LED_BLINK:
+		state = blink();
+		break;
+
+	case LED_STROBE:
+		state = strobe();
+		break;
+
+	case LED_ON:
+		state = GPIO_PIN_SET;
+		break;
+
+	default:
+		break;
+	}
+
+	HAL_GPIO_WritePin(GPIOx, GPIO_Pin, state);
 }
 
-void led_r_off(void)
+void led_r_set(Led_Mode mode)
 {
-	HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_RESET);
+	led_r_mode = mode;
 }
 
-void led_y_on(void)
+void led_y_set(Led_Mode mode)
 {
-	HAL_GPIO_WritePin(LED_Y_GPIO_Port, LED_Y_Pin, GPIO_PIN_SET);
+	led_y_mode = mode;
 }
 
-void led_y_blink(void)
+void led_g_set(Led_Mode mode)
 {
-	HAL_GPIO_WritePin(LED_Y_GPIO_Port, LED_Y_Pin, blink());
+	led_g_mode = mode;
 }
 
-void led_y_off(void)
+void led_update(void)
 {
-	HAL_GPIO_WritePin(LED_Y_GPIO_Port, LED_Y_Pin, GPIO_PIN_RESET);
-}
-
-void led_g_on(void)
-{
-	HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_SET);
-}
-
-void led_g_blink(void)
-{
-	HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, blink());
-}
-
-void led_g_off(void)
-{
-	HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_RESET);
+	led_write(LED_R_GPIO_Port, LED_R_Pin, led_r_mode);
+	led_write(LED_Y_GPIO_Port, LED_Y_Pin, led_y_mode);
+	led_write(LED_G_GPIO_Port, LED_G_Pin, led_g_mode);
 }
