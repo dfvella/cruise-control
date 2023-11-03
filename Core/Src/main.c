@@ -28,6 +28,7 @@
 #include "lsm6dsl.h"
 #include "MCP4561.h"
 #include "obd2.h"
+#include "button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -126,22 +127,38 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  obd2_init(&hfdcan1);
+  uint8_t counter = 0;
+  Button_Mode mode = BUTTON_SINGLE_PRESS;
   Display_init();
+  button_r_set_mode(BUTTON_SINGLE_PRESS);
+  button_y_set_mode(BUTTON_SINGLE_PRESS);
+  button_g_set_mode(BUTTON_SINGLE_PRESS);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  obd2_request_speed(&hfdcan1);
+	  if (button_g_get()) counter++;
+	  if (button_y_get()) counter--;
 
-	  Display_set((uint8_t)obd2_get_speed());
+	  if (button_r_get())
+	  {
+		  if (mode == BUTTON_SINGLE_PRESS)
+		  {
+			  mode = BUTTON_MULTI_PRESS;
+		  }
+		  else
+		  {
+			  mode = BUTTON_SINGLE_PRESS;
+		  }
+		  button_y_set_mode(mode);
+		  button_g_set_mode(mode);
+	  }
+
+	  Display_set(counter);
 	  Display_draw();
-
-	  printf("status: %d\n", obd2_get_status() == HAL_OK);
-
-	  HAL_Delay(100);
+	  HAL_Delay(50);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
