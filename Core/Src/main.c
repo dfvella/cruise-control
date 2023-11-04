@@ -23,12 +23,13 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "display.h"
-#include "led.h"
-#include "eeprom.h"
-#include "lsm6dsl.h"
-#include "MCP4561.h"
 #include "obd2.h"
+#include "led.h"
+#include "lsm6dsl.h"
 #include "button.h"
+#include "throttle_map.h"
+#include "MCP4561.h"
+#include "controller.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,7 +39,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define ADC_APS_A 0
+#define ADC_APS_B 1
+#define ADC_NUM_CHANNELS 2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,7 +60,7 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef hlpuart1;
 
 /* USER CODE BEGIN PV */
-
+uint16_t adc_buffer[ADC_NUM_CHANNELS];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,23 +77,7 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void i2c_scan(void)
-{
-	printf("Starting i2c scan ...\n");
 
-	HAL_StatusTypeDef status;
-
-	for (uint8_t i = 1; i < 128; i++)
-	{
-	  status = HAL_I2C_IsDeviceReady(&hi2c1, i << 1, 3, 5);
-	  if (status == HAL_OK)
-	  {
-		  printf("Device found at address 0x%X\n", i);
-	  }
-	}
-
-	printf("Finished\n");
-}
 /* USER CODE END 0 */
 
 /**
@@ -127,44 +114,203 @@ int main(void)
   MX_FDCAN1_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t counter = 0;
-  Button_Mode mode = BUTTON_SINGLE_PRESS;
+  HAL_ADC_Start_DMA(&hadc2, (uint32_t *) adc_buffer, ADC_NUM_CHANNELS);
+
   Display_init();
-  button_r_set_mode(BUTTON_SINGLE_PRESS);
-  button_y_set_mode(BUTTON_SINGLE_PRESS);
-  button_g_set_mode(BUTTON_SINGLE_PRESS);
-  led_r_set(LED_ON);
-  led_y_set(LED_ON);
-  led_g_set(LED_ON);
+  obd2_init(&hfdcan1);
+
+  Controller_State state = CONTROLLER_STATE_OFF;
+  uint32_t last_state_transition = HAL_GetTick();
+  float set_speed = 0;
+  float error_integral = 0;
+
+  uint32_t last_update = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if (button_g_get()) counter++;
-	  if (button_y_get()) counter--;
+	uint16_t aps_a_in = adc_buffer[ADC_APS_A];
+	uint16_t aps_b_in = adc_buffer[ADC_APS_B];
 
-	  if (button_r_get())
-	  {
-		  if (mode == BUTTON_SINGLE_PRESS)
-		  {
-			  mode = BUTTON_MULTI_PRESS;
-			  led_r_set(LED_BLINK);
-		  }
-		  else
-		  {
-			  mode = BUTTON_SINGLE_PRESS;
-			  led_r_set(LED_ON);
-		  }
-		  button_y_set_mode(mode);
-		  button_g_set_mode(mode);
-	  }
+	uint8_t aps_a_out;
+	uint8_t aps_b_out;
 
-	  Display_set(counter);
-	  Display_draw();
-	  led_update();
-	  HAL_Delay(50);
+	float throttle_in = throttle_map(aps_a_in, aps_b_in);
+	float throttle_out;
+
+	float current_speed = obd2_get_speed();
+
+//	uint8_t e_stop = HAL_GPIO_ReadPin(E_STOP_GPIO_Port, E_STOP_Pin);
+	uint8_t e_stop = 0;
+	uint8_t button_r = button_r_get();
+	uint8_t button_y = button_y_get();
+	uint8_t button_g = button_g_get();
+
+	uint8_t controller_abort = 0;
+
+	Controller_State next_state = state;
+
+	// input logic
+	if (state == CONTROLLER_STATE_ACTIVE)
+	{
+		if (button_g) set_speed++;
+		if (button_y) set_speed--;
+	}
+	else
+	{
+		set_speed = current_speed;
+	}
+
+	// controller logic
+	float error = set_speed - current_speed;
+
+	if (state == CONTROLLER_STATE_ACTIVE)
+	{
+		error_integral += error * (CONTROLLER_LOOP_PERIOD_MS / 1000.0f);
+		error_integral = constrain(error_integral, 0, CONTROLLER_IMAX);
+		throttle_out = (error * CONTROLLER_KP) + (error_integral * CONTROLLER_KI);
+		throttle_out = constrain(throttle_out, 0, CONTROLLER_THROTTLE_MAX);
+	}
+	else
+	{
+		throttle_out = throttle_in;
+		error_integral = 0;
+	}
+
+	// output logic
+	switch (state)
+	{
+	case CONTROLLER_STATE_OFF:
+	case CONTROLLER_STATE_IDLE:
+		Display_off();
+		led_r_set(LED_OFF);
+		led_y_set(LED_OFF);
+		led_g_set(LED_OFF);
+		button_r_set_mode(BUTTON_SINGLE_PRESS);
+		button_y_set_mode(BUTTON_SINGLE_PRESS);
+		button_g_set_mode(BUTTON_SINGLE_PRESS);
+		break;
+
+	case CONTROLLER_STATE_WAKE:
+		Display_spin();
+		led_r_set(LED_ON);
+		led_y_set(LED_OFF);
+		led_g_set(LED_OFF);
+		if (HAL_GetTick() - last_state_transition > CONTROLLER_WAKE_TIME_MS / 3) led_y_set(LED_ON);
+		if (HAL_GetTick() - last_state_transition > (2*CONTROLLER_WAKE_TIME_MS) / 3) led_g_set(LED_ON);
+		button_r_set_mode(BUTTON_SINGLE_PRESS);
+		button_y_set_mode(BUTTON_SINGLE_PRESS);
+		button_g_set_mode(BUTTON_SINGLE_PRESS);
+		break;
+
+	case CONTROLLER_STATE_READY:
+		Display_set(current_speed);
+		led_r_set(LED_ON);
+		led_y_set(LED_OFF);
+		led_g_set(LED_BLINK);
+		button_r_set_mode(BUTTON_SINGLE_PRESS);
+		button_y_set_mode(BUTTON_SINGLE_PRESS);
+		button_g_set_mode(BUTTON_SINGLE_PRESS);
+		break;
+
+	case CONTROLLER_STATE_ACTIVE:
+		Display_set(set_speed);
+		led_r_set(LED_ON);
+		led_y_set(LED_ON);
+		led_g_set(LED_ON);
+		button_r_set_mode(BUTTON_SINGLE_PRESS);
+		button_y_set_mode(BUTTON_MULTI_PRESS);
+		button_g_set_mode(BUTTON_MULTI_PRESS);
+		break;
+
+	case CONTROLLER_STATE_ABORT:
+		Display_set(current_speed);
+		led_r_set(LED_STROBE);
+		led_y_set(LED_STROBE);
+		led_g_set(LED_STROBE);
+		button_r_set_mode(BUTTON_SINGLE_PRESS);
+		button_y_set_mode(BUTTON_SINGLE_PRESS);
+		button_g_set_mode(BUTTON_SINGLE_PRESS);
+		break;
+
+	case CONTROLLER_STATE_ERROR:
+		Display_off();
+		led_r_set(LED_BLINK);
+		led_y_set(LED_BLINK);
+		led_g_set(LED_BLINK);
+		button_r_set_mode(BUTTON_SINGLE_PRESS);
+		button_y_set_mode(BUTTON_SINGLE_PRESS);
+		button_g_set_mode(BUTTON_SINGLE_PRESS);
+		break;
+
+	default:
+		break;
+	}
+
+	// next state logic
+	if (e_stop)
+	{
+		next_state = CONTROLLER_STATE_OFF;
+	}
+	else
+	{
+		switch (state)
+		{
+		case CONTROLLER_STATE_OFF:
+			if (!e_stop) next_state = CONTROLLER_STATE_IDLE;
+			break;
+
+		case CONTROLLER_STATE_IDLE:
+			if (button_r || button_y || button_g) next_state = CONTROLLER_STATE_WAKE;
+			break;
+
+		case CONTROLLER_STATE_WAKE:
+			if (button_r) next_state = CONTROLLER_STATE_IDLE;
+			else if (HAL_GetTick() - last_state_transition > CONTROLLER_WAKE_TIME_MS) next_state = CONTROLLER_STATE_READY;
+			break;
+
+		case CONTROLLER_STATE_READY:
+			if (button_g) next_state = CONTROLLER_STATE_ACTIVE;
+			else if (button_r) next_state = CONTROLLER_STATE_IDLE;
+			break;
+
+		case CONTROLLER_STATE_ACTIVE:
+			if (controller_abort) next_state = CONTROLLER_STATE_ABORT;
+			else if (button_r) next_state = CONTROLLER_STATE_READY;
+			break;
+
+		case CONTROLLER_STATE_ABORT:
+			if (HAL_GetTick() - last_state_transition > CONTROLLER_ABORT_TIME_MS) next_state = CONTROLLER_STATE_READY;
+			break;
+
+		case CONTROLLER_STATE_ERROR:
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	if (next_state != state)
+	{
+		state = next_state;
+		last_state_transition = HAL_GetTick();
+	}
+
+	throttle_map_inv(throttle_out, &aps_a_out, &aps_b_out);
+
+	MCP4561_Set_A(aps_a_out);
+	MCP4561_Set_B(aps_b_out);
+
+	Display_draw();
+	led_update();
+
+	printf("state:%d  a_in:%d  b_in:%d  t_in:%d  t_out:%d\n", state, aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out);
+
+	while (HAL_GetTick() - last_update < CONTROLLER_LOOP_PERIOD_MS);
+	last_update = HAL_GetTick();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -255,7 +401,7 @@ static void MX_ADC2_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_13;
+  sConfig.Channel = ADC_CHANNEL_3;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -268,7 +414,7 @@ static void MX_ADC2_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Channel = ADC_CHANNEL_13;
   sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
   {

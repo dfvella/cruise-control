@@ -70,7 +70,7 @@ static void draw_spin(void)
 {
 	static uint8_t mask = 0b0000011;
 
-	if (HAL_GetTick() - display.last_draw > 100)
+	if (HAL_GetTick() - display.last_draw > 50)
 	{
 		draw_mask(mask, mask);
 
@@ -89,6 +89,11 @@ static void draw_spin(void)
 
 		display.last_draw = HAL_GetTick();
 	}
+}
+
+static void turn_off(void)
+{
+	draw_mask(0, 0);
 }
 
 void Display_init(void)
@@ -114,6 +119,7 @@ void Display_draw(void)
 	switch (display.state)
 	{
 	case DISPLAY_OFF:
+		turn_off();
 		break;
 
 	case DISPLAY_SPIN:
