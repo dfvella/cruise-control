@@ -30,6 +30,7 @@
 #include "throttle_map.h"
 #include "MCP4561.h"
 #include "controller.h"
+#include "fir_filter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -116,13 +117,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_ADC_Start_DMA(&hadc2, (uint32_t *) adc_buffer, ADC_NUM_CHANNELS);
 
-  Display_init();
   obd2_init(&hfdcan1);
 
-  Controller_State state = CONTROLLER_STATE_OFF;
-  uint32_t last_state_transition = HAL_GetTick();
-  float set_speed = 0;
-  float error_integral = 0;
+  controller_init();
 
   uint32_t last_update = HAL_GetTick();
   /* USER CODE END 2 */
@@ -134,180 +131,51 @@ int main(void)
 	uint16_t aps_a_in = adc_buffer[ADC_APS_A];
 	uint16_t aps_b_in = adc_buffer[ADC_APS_B];
 
-	uint8_t aps_a_out;
-	uint8_t aps_b_out;
+	uint8_t aps_a_out = 0;
+	uint8_t aps_b_out = 0;
 
-	float throttle_in = throttle_map(aps_a_in, aps_b_in);
-	float throttle_out;
+	uint8_t aps_agreement = 0;
 
-	float current_speed = obd2_get_speed();
+	HAL_StatusTypeDef obd2_status = HAL_OK;
 
-//	uint8_t e_stop = HAL_GPIO_ReadPin(E_STOP_GPIO_Port, E_STOP_Pin);
-	uint8_t e_stop = 0;
-	uint8_t button_r = button_r_get();
-	uint8_t button_y = button_y_get();
-	uint8_t button_g = button_g_get();
+	float throttle_in = 0;
+	float throttle_out = 0;
 
-	uint8_t controller_abort = 0;
+	float current_speed = 0;
 
-	Controller_State next_state = state;
+	Controller_Error error_flag = CONTROLLER_ERROR_OK;
 
-	// input logic
-	if (state == CONTROLLER_STATE_ACTIVE)
+	obd2_status = obd2_get_status();
+
+	if (obd2_status != HAL_OK)
 	{
-		if (button_g) set_speed++;
-		if (button_y) set_speed--;
-	}
-	else
-	{
-		set_speed = current_speed;
+		error_flag |= CONTROLLER_ERROR_CAN;
 	}
 
-	// controller logic
-	float error = set_speed - current_speed;
+	obd2_status = obd2_request_speed(&hfdcan1);
 
-	if (state == CONTROLLER_STATE_ACTIVE)
+	if (obd2_status != HAL_OK)
 	{
-		error_integral += error * (CONTROLLER_LOOP_PERIOD_MS / 1000.0f);
-		error_integral = constrain(error_integral, 0, CONTROLLER_IMAX);
-		throttle_out = (error * CONTROLLER_KP) + (error_integral * CONTROLLER_KI);
-		throttle_out = constrain(throttle_out, 0, CONTROLLER_THROTTLE_MAX);
-	}
-	else
-	{
-		throttle_out = throttle_in;
-		error_integral = 0;
+		error_flag |= CONTROLLER_ERROR_CAN;
 	}
 
-	// output logic
-	switch (state)
+	current_speed = obd2_get_speed();
+
+	throttle_in = throttle_map(aps_a_in, aps_b_in, &aps_agreement);
+
+	if (aps_agreement == 0)
 	{
-	case CONTROLLER_STATE_OFF:
-	case CONTROLLER_STATE_IDLE:
-		Display_off();
-		led_r_set(LED_OFF);
-		led_y_set(LED_OFF);
-		led_g_set(LED_OFF);
-		button_r_set_mode(BUTTON_SINGLE_PRESS);
-		button_y_set_mode(BUTTON_SINGLE_PRESS);
-		button_g_set_mode(BUTTON_SINGLE_PRESS);
-		break;
-
-	case CONTROLLER_STATE_WAKE:
-		Display_spin();
-		led_r_set(LED_ON);
-		led_y_set(LED_OFF);
-		led_g_set(LED_OFF);
-		if (HAL_GetTick() - last_state_transition > CONTROLLER_WAKE_TIME_MS / 3) led_y_set(LED_ON);
-		if (HAL_GetTick() - last_state_transition > (2*CONTROLLER_WAKE_TIME_MS) / 3) led_g_set(LED_ON);
-		button_r_set_mode(BUTTON_SINGLE_PRESS);
-		button_y_set_mode(BUTTON_SINGLE_PRESS);
-		button_g_set_mode(BUTTON_SINGLE_PRESS);
-		break;
-
-	case CONTROLLER_STATE_READY:
-		Display_set(current_speed);
-		led_r_set(LED_ON);
-		led_y_set(LED_OFF);
-		led_g_set(LED_BLINK);
-		button_r_set_mode(BUTTON_SINGLE_PRESS);
-		button_y_set_mode(BUTTON_SINGLE_PRESS);
-		button_g_set_mode(BUTTON_SINGLE_PRESS);
-		break;
-
-	case CONTROLLER_STATE_ACTIVE:
-		Display_set(set_speed);
-		led_r_set(LED_ON);
-		led_y_set(LED_ON);
-		led_g_set(LED_ON);
-		button_r_set_mode(BUTTON_SINGLE_PRESS);
-		button_y_set_mode(BUTTON_MULTI_PRESS);
-		button_g_set_mode(BUTTON_MULTI_PRESS);
-		break;
-
-	case CONTROLLER_STATE_ABORT:
-		Display_set(current_speed);
-		led_r_set(LED_STROBE);
-		led_y_set(LED_STROBE);
-		led_g_set(LED_STROBE);
-		button_r_set_mode(BUTTON_SINGLE_PRESS);
-		button_y_set_mode(BUTTON_SINGLE_PRESS);
-		button_g_set_mode(BUTTON_SINGLE_PRESS);
-		break;
-
-	case CONTROLLER_STATE_ERROR:
-		Display_off();
-		led_r_set(LED_BLINK);
-		led_y_set(LED_BLINK);
-		led_g_set(LED_BLINK);
-		button_r_set_mode(BUTTON_SINGLE_PRESS);
-		button_y_set_mode(BUTTON_SINGLE_PRESS);
-		button_g_set_mode(BUTTON_SINGLE_PRESS);
-		break;
-
-	default:
-		break;
+		error_flag |= CONTROLLER_ERROR_APS;
 	}
 
-	// next state logic
-	if (e_stop)
-	{
-		next_state = CONTROLLER_STATE_OFF;
-	}
-	else
-	{
-		switch (state)
-		{
-		case CONTROLLER_STATE_OFF:
-			if (!e_stop) next_state = CONTROLLER_STATE_IDLE;
-			break;
-
-		case CONTROLLER_STATE_IDLE:
-			if (button_r || button_y || button_g) next_state = CONTROLLER_STATE_WAKE;
-			break;
-
-		case CONTROLLER_STATE_WAKE:
-			if (button_r) next_state = CONTROLLER_STATE_IDLE;
-			else if (HAL_GetTick() - last_state_transition > CONTROLLER_WAKE_TIME_MS) next_state = CONTROLLER_STATE_READY;
-			break;
-
-		case CONTROLLER_STATE_READY:
-			if (button_g) next_state = CONTROLLER_STATE_ACTIVE;
-			else if (button_r) next_state = CONTROLLER_STATE_IDLE;
-			break;
-
-		case CONTROLLER_STATE_ACTIVE:
-			if (controller_abort) next_state = CONTROLLER_STATE_ABORT;
-			else if (button_r) next_state = CONTROLLER_STATE_READY;
-			break;
-
-		case CONTROLLER_STATE_ABORT:
-			if (HAL_GetTick() - last_state_transition > CONTROLLER_ABORT_TIME_MS) next_state = CONTROLLER_STATE_READY;
-			break;
-
-		case CONTROLLER_STATE_ERROR:
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	if (next_state != state)
-	{
-		state = next_state;
-		last_state_transition = HAL_GetTick();
-	}
+	throttle_out = controller_run(current_speed, throttle_in, error_flag);
 
 	throttle_map_inv(throttle_out, &aps_a_out, &aps_b_out);
 
 	MCP4561_Set_A(aps_a_out);
 	MCP4561_Set_B(aps_b_out);
 
-	Display_draw();
-	led_update();
-
-	printf("state:%d  a_in:%d  b_in:%d  t_in:%d  t_out:%d\n", state, aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out);
+//	printf("a_in:%d  b_in:%d  t_in:%d  t_out:%d\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out);
 
 	while (HAL_GetTick() - last_update < CONTROLLER_LOOP_PERIOD_MS);
 	last_update = HAL_GetTick();

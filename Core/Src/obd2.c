@@ -10,6 +10,9 @@
 static uint32_t last_rx;
 static float current_speed;
 
+uint8_t can_data[8];
+uint8_t can_len;
+
 HAL_StatusTypeDef obd2_init(FDCAN_HandleTypeDef *hcan)
 {
 	HAL_StatusTypeDef status;
@@ -70,12 +73,18 @@ void obd2_handle_rx(FDCAN_HandleTypeDef *hcan)
         return;
     }
 
+    can_len = rx_header.DataLength >> 16;
+    can_data[0] = data[0];
+    can_data[1] = data[1];
+    can_data[2] = data[2];
+    can_data[3] = data[3];
+
     if (rx_header.Identifier != OBD2_RESPONSE_ID)
     {
         return;
     }
 
-    if (rx_header.DataLength != OBD2_RESPONSE_LENGTH)
+    if (rx_header.DataLength != OBD2_RESPONSE_LENGTH << 16)
     {
     	return;
     }
@@ -116,7 +125,7 @@ HAL_StatusTypeDef obd2_request_speed(FDCAN_HandleTypeDef *hcan)
     header.DataLength = OBD2_REQUEST_LENGTH << 16;
 
     uint8_t data[OBD2_REQUEST_LENGTH];
-    OBD2_MSG *obd2_msg = (OBD2_MSG *) obd2_msg;
+    OBD2_MSG *obd2_msg = (OBD2_MSG *) data;
 
     obd2_msg->dlen = OBD2_REQUEST_DLEN;
     obd2_msg->mode = OBD2_REQUEST_MODE;

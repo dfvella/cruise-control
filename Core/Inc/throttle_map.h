@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-float throttle_map(uint16_t aps_a, uint16_t aps_b);
+float throttle_map(uint16_t aps_a, uint16_t aps_b, uint8_t *aps_agreement);
 void throttle_map_inv(float throttle, uint8_t *aps_a_out, uint8_t *aps_b_out);
 
 #endif /* INC_THROTTLE_MAP_H_ */
