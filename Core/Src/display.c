@@ -60,17 +60,30 @@ static uint8_t digit_mask(uint8_t digit)
 
 static void draw_number(uint8_t number)
 {
-	uint8_t mask_1 = number / 10 ? digit_mask(number / 10) : 0;
-	uint8_t mask_2 = digit_mask(number % 10);
+	uint8_t msd = number / 10;
+	uint8_t lsd = number % 10;
 
-	draw_mask(mask_1, mask_2);
+	uint8_t mask_1 = 0;
+	uint8_t mask_2 = digit_mask(lsd);
+
+	if (msd != 0)
+	{
+		mask_1 = digit_mask(msd);
+	}
+
+	if (HAL_GetTick() - display.last_draw > DISPLAY_DRAW_UPDATE_PERIOD_MS)
+	{
+		draw_mask(mask_1, mask_2);
+
+		display.last_draw = HAL_GetTick();
+	}
 }
 
 static void draw_spin(void)
 {
 	static uint8_t mask = 0b0000011;
 
-	if (HAL_GetTick() - display.last_draw > 50)
+	if (HAL_GetTick() - display.last_draw > DISPLAY_SPIN_UPDATE_PERIOD_MS)
 	{
 		draw_mask(mask, mask);
 

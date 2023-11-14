@@ -14,6 +14,9 @@
 
 #include "main.h"
 
+#define DISPLAY_DRAW_UPDATE_PERIOD_MS 250
+#define DISPLAY_SPIN_UPDATE_PERIOD_MS 50
+
 typedef enum {
 	DISPLAY_OFF,
 	DISPLAY_SPIN,
