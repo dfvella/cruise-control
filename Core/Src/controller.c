@@ -164,6 +164,10 @@ static Controller_State calculate_next_state(uint8_t abort, uint8_t ready, uint8
 			{
 				next_state = CONTROLLER_STATE_IDLE;
 			}
+			else if (!ready)
+			{
+				next_state = CONTROLLER_STATE_WAIT;
+			}
 			else if (button_g)
 			{
 				next_state = CONTROLLER_STATE_ACTIVE;
