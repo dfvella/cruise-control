@@ -20,6 +20,13 @@ typedef enum {
 	BUTTON_MULTI_PRESS
 } Button_Mode;
 
+typedef struct {
+	uint32_t last_press;
+	uint32_t last_get;
+	uint8_t pressed_prev;
+	Button_Mode mode;
+} Button;
+
 void button_r_set_mode(Button_Mode mode);
 void button_y_set_mode(Button_Mode mode);
 void button_g_set_mode(Button_Mode mode);
