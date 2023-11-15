@@ -14,7 +14,7 @@ extern uint8_t can_data[8];
 extern uint8_t can_len;
 
 static const float accel_filter_resp[ACCEL_FILTER_LEN] = {
-    0.2, 0.2, 0.2, 0.2, 0.2,
+    0.25, 0.25, 0.25, 0.25, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0
