@@ -20,7 +20,7 @@ static const float accel_filter_resp[ACCEL_FILTER_LEN] = {
     0.0, 0.0, 0.0, 0.0, 0.0
 };
 
-float constrain(float val, float min, float max)
+static float constrain(float val, float min, float max)
 {
 	if (val > max)
 	{
@@ -356,7 +356,7 @@ float controller_run(float current_speed, float throttle_in, Controller_Error er
 
 	update_ui(current_speed);
 
-	printf("state:%d  estop:%d  a:%f  len:%X  d0:%X  d1:%X  d2:%X  d3:%X\n", next_state, e_stop, accel, can_len, can_data[0], can_data[1], can_data[2], can_data[3]);
+//	printf("state:%d  estop:%d  a:%f  len:%X  d0:%X  d1:%X  d2:%X  d3:%X\n", next_state, e_stop, accel, can_len, can_data[0], can_data[1], can_data[2], can_data[3]);
 
 	return throttle_out;
 }

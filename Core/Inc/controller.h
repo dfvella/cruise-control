@@ -66,8 +66,6 @@ typedef struct {
 	fir_filter_32f_t accel_filter;
 } Controller;
 
-float constrain(float val, float min, float max);
-
 void controller_init(void);
 float controller_run(float current_speed, float throttle_in, Controller_Error error_flag);
 
