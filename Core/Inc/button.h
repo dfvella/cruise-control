@@ -13,7 +13,7 @@
 #include "main.h"
 
 #define BUTTON_COOLDOWN_INITIAL_MS 500
-#define BUTTON_COOLDOWN_HOLD_MS 100
+#define BUTTON_COOLDOWN_HOLD_MS 50
 
 typedef enum {
 	BUTTON_SINGLE_PRESS,
