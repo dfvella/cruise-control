@@ -122,6 +122,8 @@ int main(void)
   controller_init();
 
   uint32_t last_update = HAL_GetTick();
+
+//  uint8_t counter = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -175,7 +177,11 @@ int main(void)
 	MCP4561_Set_A(aps_a_out);
 	MCP4561_Set_B(aps_b_out);
 
-//	printf("a_in:%d  b_in:%d  t_in:%d  t_out:%d\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out);
+//	MCP4561_Set_A(counter++);
+//	MCP4561_Set_B(counter++);
+
+	printf("a_in:%d  b_in:%d  t_in:%d  t_out:%d  a_out:%d  b_out:%d\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out, aps_a_out, aps_b_out);
+//	printf("%ld, %d, %d, %d\r\n", HAL_GetTick(), aps_a_in, aps_b_in, pot_status);
 
 	while (HAL_GetTick() - last_update < CONTROLLER_LOOP_PERIOD_MS);
 	last_update = HAL_GetTick();
