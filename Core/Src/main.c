@@ -54,6 +54,8 @@
 ADC_HandleTypeDef hadc2;
 DMA_HandleTypeDef hdma_adc2;
 
+DAC_HandleTypeDef hdac1;
+
 FDCAN_HandleTypeDef hfdcan1;
 
 I2C_HandleTypeDef hi2c1;
@@ -72,6 +74,7 @@ static void MX_LPUART1_UART_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_DAC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -114,73 +117,82 @@ int main(void)
   MX_ADC2_Init();
   MX_FDCAN1_Init();
   MX_I2C1_Init();
+  MX_DAC1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_ADC_Start_DMA(&hadc2, (uint32_t *) adc_buffer, ADC_NUM_CHANNELS);
+//  HAL_ADC_Start_DMA(&hadc2, (uint32_t *) adc_buffer, ADC_NUM_CHANNELS);
+//
+//  obd2_init(&hfdcan1);
+//
+//  controller_init();
 
-  obd2_init(&hfdcan1);
-
-  controller_init();
+  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
   uint32_t last_update = HAL_GetTick();
 
-//  uint8_t counter = 0;
+  uint32_t counter = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	uint16_t aps_a_in = adc_buffer[ADC_APS_A];
-	uint16_t aps_b_in = adc_buffer[ADC_APS_B];
+	  HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, counter);
+	  counter += 1023;
 
-	uint8_t aps_a_out = 0;
-	uint8_t aps_b_out = 0;
+	  printf("%ld\r\n", counter);
+	  HAL_Delay(1000);
 
-	uint8_t aps_agreement = 0;
-
-	HAL_StatusTypeDef obd2_status = HAL_OK;
-
-	float throttle_in = 0;
-	float throttle_out = 0;
-
-	float current_speed = 0;
-
-	Controller_Error error_flag = CONTROLLER_ERROR_OK;
-
-	obd2_status = obd2_get_status();
-
-	if (obd2_status != HAL_OK)
-	{
-		error_flag |= CONTROLLER_ERROR_CAN;
-	}
-
-	obd2_status = obd2_request_speed(&hfdcan1);
-
-	if (obd2_status != HAL_OK)
-	{
-		error_flag |= CONTROLLER_ERROR_CAN;
-	}
-
-	current_speed = obd2_get_speed();
-
-	throttle_in = throttle_map(aps_a_in, aps_b_in, &aps_agreement);
-
-	if (aps_agreement == 0)
-	{
-		error_flag |= CONTROLLER_ERROR_APS;
-	}
-
-	throttle_out = controller_run(current_speed, throttle_in, error_flag);
-
-	throttle_map_inv(throttle_out, &aps_a_out, &aps_b_out);
-
-	MCP4561_Set_A(aps_a_out);
-	MCP4561_Set_B(aps_b_out);
+//	uint16_t aps_a_in = adc_buffer[ADC_APS_A];
+//	uint16_t aps_b_in = adc_buffer[ADC_APS_B];
+//
+//	uint8_t aps_a_out = 0;
+//	uint8_t aps_b_out = 0;
+//
+//	uint8_t aps_agreement = 0;
+//
+//	HAL_StatusTypeDef obd2_status = HAL_OK;
+//
+//	float throttle_in = 0;
+//	float throttle_out = 0;
+//
+//	float current_speed = 0;
+//
+//	Controller_Error error_flag = CONTROLLER_ERROR_OK;
+//
+//	obd2_status = obd2_get_status();
+//
+//	if (obd2_status != HAL_OK)
+//	{
+//		error_flag |= CONTROLLER_ERROR_CAN;
+//	}
+//
+//	obd2_status = obd2_request_speed(&hfdcan1);
+//
+//	if (obd2_status != HAL_OK)
+//	{
+//		error_flag |= CONTROLLER_ERROR_CAN;
+//	}
+//
+//	current_speed = obd2_get_speed();
+//
+//	throttle_in = throttle_map(aps_a_in, aps_b_in, &aps_agreement);
+//
+//	if (aps_agreement == 0)
+//	{
+//		error_flag |= CONTROLLER_ERROR_APS;
+//	}
+//
+//	throttle_out = controller_run(current_speed, throttle_in, error_flag);
+//
+//	throttle_map_inv(throttle_out, &aps_a_out, &aps_b_out);
+//
+//	MCP4561_Set_A(aps_a_out);
+//	MCP4561_Set_B(aps_b_out);
 
 //	MCP4561_Set_A(counter++);
 //	MCP4561_Set_B(counter++);
 
-	printf("a_in:%d  b_in:%d  t_in:%d  t_out:%d  a_out:%d  b_out:%d\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out, aps_a_out, aps_b_out);
+//	printf("a_in:%d  b_in:%d  t_in:%d  t_out:%d  a_out:%d  b_out:%d\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out, aps_a_out, aps_b_out);
 //	printf("%ld, %d, %d, %d\r\n", HAL_GetTick(), aps_a_in, aps_b_in, pot_status);
 
 	while (HAL_GetTick() - last_update < CONTROLLER_LOOP_PERIOD_MS);
@@ -261,7 +273,7 @@ static void MX_ADC2_Init(void)
   hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc2.Init.LowPowerAutoWait = DISABLE;
   hadc2.Init.ContinuousConvMode = ENABLE;
-  hadc2.Init.NbrOfConversion = 2;
+  hadc2.Init.NbrOfConversion = 4;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -288,8 +300,26 @@ static void MX_ADC2_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_13;
+  sConfig.Channel = ADC_CHANNEL_4;
   sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = ADC_REGULAR_RANK_4;
   if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -297,6 +327,60 @@ static void MX_ADC2_Init(void)
   /* USER CODE BEGIN ADC2_Init 2 */
 
   /* USER CODE END ADC2_Init 2 */
+
+}
+
+/**
+  * @brief DAC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DAC1_Init(void)
+{
+
+  /* USER CODE BEGIN DAC1_Init 0 */
+
+  /* USER CODE END DAC1_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC1_Init 1 */
+
+  /* USER CODE END DAC1_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac1.Instance = DAC1;
+  if (HAL_DAC_Init(&hdac1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_AUTOMATIC;
+  sConfig.DAC_DMADoubleDataMode = DISABLE;
+  sConfig.DAC_SignedFormat = DISABLE;
+  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
+  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
+  sConfig.DAC_Trigger2 = DAC_TRIGGER_NONE;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_EXTERNAL;
+  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
+  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT2 config
+  */
+  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC1_Init 2 */
+
+  /* USER CODE END DAC1_Init 2 */
 
 }
 
@@ -473,21 +557,20 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_G_Pin|LED_Y_Pin|DISP_1B_Pin|DISP_2C_Pin
-                          |DISP_2G_Pin|DISP_2D_Pin|DISP_2E_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_G_Pin|LED_Y_Pin|DISP_2C_Pin|DISP_2G_Pin
+                          |DISP_2D_Pin|DISP_2E_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LED_R_Pin|EEPROM_NWC_Pin|DISP_1E_Pin|DISP_1D_Pin
-                          |DISP_1C_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LED_R_Pin|DISP_1E_Pin|DISP_1D_Pin|DISP_1C_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, DISP_1A_Pin|DISP_1G_Pin|DISP_1F_Pin|DISP_2F_Pin
-                          |DISP_2A_Pin|DISP_2B_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, DISP_1A_Pin|DISP_1G_Pin|DISP_1F_Pin|DISP_1B_Pin
+                          |DISP_2F_Pin|DISP_2A_Pin|DISP_2B_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_G_Pin LED_Y_Pin DISP_1B_Pin DISP_2C_Pin
-                           DISP_2G_Pin DISP_2D_Pin DISP_2E_Pin */
-  GPIO_InitStruct.Pin = LED_G_Pin|LED_Y_Pin|DISP_1B_Pin|DISP_2C_Pin
-                          |DISP_2G_Pin|DISP_2D_Pin|DISP_2E_Pin;
+  /*Configure GPIO pins : LED_G_Pin LED_Y_Pin DISP_2C_Pin DISP_2G_Pin
+                           DISP_2D_Pin DISP_2E_Pin */
+  GPIO_InitStruct.Pin = LED_G_Pin|LED_Y_Pin|DISP_2C_Pin|DISP_2G_Pin
+                          |DISP_2D_Pin|DISP_2E_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -499,10 +582,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LED_R_Pin EEPROM_NWC_Pin DISP_1E_Pin DISP_1D_Pin
-                           DISP_1C_Pin */
-  GPIO_InitStruct.Pin = LED_R_Pin|EEPROM_NWC_Pin|DISP_1E_Pin|DISP_1D_Pin
-                          |DISP_1C_Pin;
+  /*Configure GPIO pins : LED_R_Pin DISP_1E_Pin DISP_1D_Pin DISP_1C_Pin */
+  GPIO_InitStruct.Pin = LED_R_Pin|DISP_1E_Pin|DISP_1D_Pin|DISP_1C_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -514,10 +595,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BUTTON_R_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DISP_1A_Pin DISP_1G_Pin DISP_1F_Pin DISP_2F_Pin
-                           DISP_2A_Pin DISP_2B_Pin */
-  GPIO_InitStruct.Pin = DISP_1A_Pin|DISP_1G_Pin|DISP_1F_Pin|DISP_2F_Pin
-                          |DISP_2A_Pin|DISP_2B_Pin;
+  /*Configure GPIO pins : DISP_1A_Pin DISP_1G_Pin DISP_1F_Pin DISP_1B_Pin
+                           DISP_2F_Pin DISP_2A_Pin DISP_2B_Pin */
+  GPIO_InitStruct.Pin = DISP_1A_Pin|DISP_1G_Pin|DISP_1F_Pin|DISP_1B_Pin
+                          |DISP_2F_Pin|DISP_2A_Pin|DISP_2B_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
