@@ -357,6 +357,7 @@ float controller_run(float current_speed, float throttle_in, Controller_Error er
 	update_ui(current_speed);
 
 //	printf("state:%d  estop:%d  a:%f  len:%X  d0:%X  d1:%X  d2:%X  d3:%X\n", next_state, e_stop, accel, can_len, can_data[0], can_data[1], can_data[2], can_data[3]);
+//	printf("r:%d  y:%d  g:%d\r\n", button_r, button_y, button_g);
 
 	return throttle_out;
 }

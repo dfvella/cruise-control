@@ -28,7 +28,6 @@
 #include "lsm6dsl.h"
 #include "button.h"
 #include "throttle_map.h"
-#include "MCP4561.h"
 #include "controller.h"
 #include "fir_filter.h"
 /* USER CODE END Includes */
@@ -42,7 +41,9 @@
 /* USER CODE BEGIN PD */
 #define ADC_APS_A 0
 #define ADC_APS_B 1
-#define ADC_NUM_CHANNELS 2
+#define ADC_APS_A_OUT 2
+#define ADC_APS_B_OUT 3
+#define ADC_NUM_CHANNELS 4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -81,7 +82,14 @@ static void MX_DAC1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+float ADC_conv_count_to_volts(uint16_t count)
+{
+	return (((2.2 + 1.5) * ((3.3 * count) / 4095.0f)) / 2.2) + 0.1;
+}
+uint16_t DAC_conv_volts_to_count(float v)
+{
+	return (4095.0f * (v - 0.01)) / (((22.0f / 33.0f) + 1) * 3.3);
+}
 /* USER CODE END 0 */
 
 /**
@@ -119,81 +127,77 @@ int main(void)
   MX_I2C1_Init();
   MX_DAC1_Init();
   /* USER CODE BEGIN 2 */
-//  HAL_ADC_Start_DMA(&hadc2, (uint32_t *) adc_buffer, ADC_NUM_CHANNELS);
-//
-//  obd2_init(&hfdcan1);
-//
-//  controller_init();
+  HAL_ADC_Start_DMA(&hadc2, (uint32_t *) adc_buffer, ADC_NUM_CHANNELS);
 
+  obd2_init(&hfdcan1);
+
+  controller_init();
+
+  HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
   HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
   uint32_t last_update = HAL_GetTick();
-
-  uint32_t counter = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, counter);
-	  counter += 1023;
+	float aps_a_in = ADC_conv_count_to_volts(adc_buffer[ADC_APS_A]);
+	float aps_b_in = ADC_conv_count_to_volts(adc_buffer[ADC_APS_B]);
 
-	  printf("%ld\r\n", counter);
-	  HAL_Delay(1000);
+	float aps_a_out_actual = ADC_conv_count_to_volts(adc_buffer[ADC_APS_A_OUT]);
+	float aps_b_out_actual = ADC_conv_count_to_volts(adc_buffer[ADC_APS_B_OUT]);
 
-//	uint16_t aps_a_in = adc_buffer[ADC_APS_A];
-//	uint16_t aps_b_in = adc_buffer[ADC_APS_B];
-//
-//	uint8_t aps_a_out = 0;
-//	uint8_t aps_b_out = 0;
-//
-//	uint8_t aps_agreement = 0;
-//
-//	HAL_StatusTypeDef obd2_status = HAL_OK;
-//
-//	float throttle_in = 0;
-//	float throttle_out = 0;
-//
-//	float current_speed = 0;
-//
-//	Controller_Error error_flag = CONTROLLER_ERROR_OK;
-//
-//	obd2_status = obd2_get_status();
-//
-//	if (obd2_status != HAL_OK)
-//	{
-//		error_flag |= CONTROLLER_ERROR_CAN;
-//	}
-//
-//	obd2_status = obd2_request_speed(&hfdcan1);
-//
-//	if (obd2_status != HAL_OK)
-//	{
-//		error_flag |= CONTROLLER_ERROR_CAN;
-//	}
-//
-//	current_speed = obd2_get_speed();
-//
-//	throttle_in = throttle_map(aps_a_in, aps_b_in, &aps_agreement);
-//
-//	if (aps_agreement == 0)
-//	{
-//		error_flag |= CONTROLLER_ERROR_APS;
-//	}
-//
-//	throttle_out = controller_run(current_speed, throttle_in, error_flag);
-//
-//	throttle_map_inv(throttle_out, &aps_a_out, &aps_b_out);
-//
-//	MCP4561_Set_A(aps_a_out);
-//	MCP4561_Set_B(aps_b_out);
+	UNUSED(aps_a_out_actual);
+	UNUSED(aps_b_out_actual);
 
-//	MCP4561_Set_A(counter++);
-//	MCP4561_Set_B(counter++);
+	float aps_a_out = 0;
+	float aps_b_out = 0;
 
-//	printf("a_in:%d  b_in:%d  t_in:%d  t_out:%d  a_out:%d  b_out:%d\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out, aps_a_out, aps_b_out);
-//	printf("%ld, %d, %d, %d\r\n", HAL_GetTick(), aps_a_in, aps_b_in, pot_status);
+	uint8_t aps_agreement = 0;
+
+	HAL_StatusTypeDef obd2_status = HAL_OK;
+
+	float throttle_in = 0;
+	float throttle_out = 0;
+
+	float current_speed = 0;
+
+	Controller_Error error_flag = CONTROLLER_ERROR_OK;
+
+	obd2_status = obd2_get_status();
+
+	if (obd2_status != HAL_OK)
+	{
+		error_flag |= CONTROLLER_ERROR_CAN;
+	}
+
+	obd2_status = obd2_request_speed(&hfdcan1);
+
+	if (obd2_status != HAL_OK)
+	{
+		error_flag |= CONTROLLER_ERROR_CAN;
+	}
+
+	current_speed = obd2_get_speed();
+
+	throttle_in = throttle_map(aps_a_in, aps_b_in, &aps_agreement);
+
+	if (aps_agreement == 0)
+	{
+		error_flag |= CONTROLLER_ERROR_APS;
+	}
+
+	throttle_out = controller_run(current_speed, throttle_in, error_flag);
+
+	throttle_map_inv(throttle_out, &aps_a_out, &aps_b_out);
+
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, DAC_conv_volts_to_count(aps_a_out));
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, DAC_conv_volts_to_count(aps_b_out));
+
+	printf("a_in:%.3f  b_in:%.3f  t_in:%d  t_out:%d  a_out:%.3f  b_out:%.3f\r\n", aps_a_in, aps_b_in, (uint8_t)throttle_in, (uint8_t)throttle_out, aps_a_out_actual, aps_b_out_actual);
+//	printf("%ld, %.3f, %.3f, %.3f, %.3f\r\n", HAL_GetTick(), aps_a_in, aps_b_in, aps_a_out_actual, aps_b_out_actual);
 
 	while (HAL_GetTick() - last_update < CONTROLLER_LOOP_PERIOD_MS);
 	last_update = HAL_GetTick();

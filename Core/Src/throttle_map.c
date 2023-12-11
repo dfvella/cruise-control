@@ -28,7 +28,7 @@ static float interpolate(float x, float x1, float x2, float y1, float y2)
 	return (m * (x - x1)) + y1;
 }
 
-float throttle_map(uint16_t aps_a, uint16_t aps_b, uint8_t *aps_agreement)
+float throttle_map(float aps_a, float aps_b, uint8_t *aps_agreement)
 {
 	uint8_t aps_a_plausible;
 	uint8_t aps_b_plausible;
@@ -64,14 +64,14 @@ float throttle_map(uint16_t aps_a, uint16_t aps_b, uint8_t *aps_agreement)
 	return result;
 }
 
-void throttle_map_inv(float throttle, uint8_t *aps_a_out, uint8_t *aps_b_out)
+void throttle_map_inv(float throttle, float *aps_a_out, float *aps_b_out)
 {
 	float a_out;
 	float b_out;
 
-	a_out = interpolate(throttle, 0, 100, APS_A_OUT_MIN, APS_A_OUT_MAX);
-	b_out = interpolate(throttle, 0, 100, APS_B_OUT_MIN, APS_B_OUT_MAX);
+	a_out = interpolate(throttle, 0, 100, APS_A_MIN, APS_A_MAX);
+	b_out = interpolate(throttle, 0, 100, APS_B_MIN, APS_B_MAX);
 
-	*aps_a_out = constrain(a_out, APS_A_OUT_MIN, APS_A_OUT_MAX);
-	*aps_b_out = constrain(b_out, APS_B_OUT_MIN, APS_B_OUT_MAX);
+	*aps_a_out = constrain(a_out, APS_A_MIN, APS_A_MAX);
+	*aps_b_out = constrain(b_out, APS_B_MIN, APS_B_MAX);
 }
